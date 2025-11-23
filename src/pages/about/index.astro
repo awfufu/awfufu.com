@@ -1,0 +1,176 @@
+---
+import { Spoiler } from 'astro-pure/user'
+import PageLayout from '@/layouts/CommonPage.astro'
+import Substats from '@/components/about/Substats.astro'
+import ToolSection from '@/components/about/ToolSection.astro'
+---
+
+<PageLayout title='关于' comment>
+  <p><code>6L+Z6YO96KKr5L2g5Y+R546w5LqGKMKw44OtwrAp77yB</code></p>
+  <p>❕简介已加密 <Spoiler><del>其实只是懒得写</del>👈🏻🤓</Spoiler></p>
+  <!-- <Button title='Sponsor Me' class='w-fit' href='/projects#sponsorship' variant='ahead' /> -->
+
+  {/* general-talk */}
+  <!-- <h2 id='hobbies'>Hobbies</h2>
+  <ul>
+    <li>Lorem ipsum dolor sit amet, vidit suscipit at mei.</li>
+    <li>
+      Quem denique mea id. Usu ei regione indoctum dissentiunt, cu meliore fuisset mei, vel quod
+      voluptua ne.
+    </li>
+    <li>Ex dicat impedit mel, at eum oratio possit voluptatum.</li>
+    <li>Impetus fuisset ullamcorper pri cu, his posse iisque ad, aliquam honestatis usu id.</li>
+  </ul> -->
+
+  {/* social-networks */}
+  <h2 id='social-networks'>社交网络</h2>
+  <p>你可以在以下平台找到我</p>
+  <Substats
+    stats={[
+      {
+        platform: 'GitHub',
+        icon: 'github',
+        link: 'https://github.com/awfufu',
+        text: 'followers',
+        api: 'github/awfufu'
+      },
+      {
+        platform: 'bilibili',
+        icon: 'bilibili',
+        color: '#fe7398',
+        link: 'https://space.bilibili.com/107816649',
+        text: 'followers',
+        count: 2797
+      },
+      {
+        platform: 'Telegram',
+        icon: 'telegram',
+        color: '#2ca5e0',
+        link: 'https://t.me/awfufu',
+        text: 'subscribers',
+        api: 'telegram/fuleyrie'
+      },
+      {
+        platform: 'Steam',
+        icon: 'steam',
+        color: '#50769d',
+        link: 'https://steamcommunity.com/id/awfufu/',
+        text: 'games',
+        count: 40
+      }
+    ]}
+  />
+
+  {/* tools */}
+  <h2 id='tools'>开发环境</h2>
+  <ToolSection
+    class='mb-5'
+    title='我的机器'
+    tools={[
+      {
+        name: 'Arch Linux',
+        description: '主力机',
+        href: 'https://archlinux.org/',
+        icon: import('@/assets/tools/archlinux.svg?raw')
+      },
+      {
+        name: 'Fedora 43',
+        description: '服务器',
+        href: 'https://fedoraproject.org/',
+        icon: import('@/assets/tools/fedora.svg?raw')
+      }
+    ]}
+  />
+
+  <h2 id='tools'>开发环境</h2>
+
+  <ToolSection
+    class='mb-5'
+    title='IDE | 开发工具'
+    tools={[
+      {
+        name: 'Antigravity',
+        description: 'AI IDE | 快速构建项目',
+        href: 'https://antigravity.google/',
+        icon: import('@/assets/tools/antigravity.svg?raw')
+      },
+      {
+        name: 'Cursor',
+        description: 'AI IDE | 快速构建项目',
+        href: 'https://cursor.com/',
+        icon: import('@/assets/tools/cursor.svg?raw')
+      },
+      {
+        name: 'VS Code',
+        description: 'IDE | 学习使用，避免 AI 提示',
+        href: 'https://code.visualstudio.com/',
+        icon: import('@/assets/tools/vscode.svg?raw')
+      },
+      {
+        name: 'Neovim',
+        description: '文本编辑器 | 终端临时编辑',
+        href: 'https://neovim.io/',
+        icon: import('@/assets/tools/neovim.svg?raw')
+      }
+    ]}
+  />
+
+  <h2>团队成员</h2>
+
+  <ToolSection
+    class='mb-5'
+    title='合作伙伴'
+    tools={[
+      {
+        name: '我',
+        description: '诶嘿~★',
+        href: '/',
+        icon: import('@/assets/avatar.jpg')
+      },
+      {
+        name: 'Claude',
+        description: '程序开发',
+        href: 'https://claude.ai/',
+        icon: import('@/assets/tools/claude.svg?raw')
+      },
+      {
+        name: 'Gemini',
+        description: '程序开发',
+        href: 'https://gemini.google.com/',
+        icon: import('@/assets/tools/gemini.svg?raw')
+      },
+      {
+        name: 'ChatGPT',
+        description: '分析调研',
+        href: 'https://chat.openai.com/',
+        icon: import('@/assets/tools/chatgpt.svg?raw')
+      },
+      {
+        name: 'Grok',
+        description: '分析调研',
+        href: 'https://grok.com/',
+        icon: import('@/assets/tools/grok.svg?raw')
+      },
+      {
+        name: 'DeepSeek',
+        description: '情绪价值',
+        href: 'https://deepseek.com/',
+        icon: import('@/assets/tools/deepseek.svg?raw')
+      }
+    ]}
+  />
+
+  {/* about-blog */}
+  <h2 id='about-blog'>关于博客</h2>
+  <p>博客使用以下项目搭建：</p>
+  <ul>
+    <li>Web服务器: <a href='https://caddyserver.com/' target='_blank'>Caddy</a></li>
+    <li>框架: <a href='https://astro.build/' target='_blank'>Astro</a></li>
+    <li>
+      主题: <a href='https://github.com/cworld1/astro-theme-pure' target='_blank'
+        >Astro Theme Pure</a
+      >
+    </li>
+    <li>评论: <a href='https://waline.js.org' target='_blank'>Waline</a></li>
+  </ul>
+</PageLayout>

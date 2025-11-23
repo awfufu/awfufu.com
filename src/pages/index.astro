@@ -1,0 +1,104 @@
+---
+import { Image } from 'astro:assets'
+
+import { PostPreview } from 'astro-pure/components/pages'
+import { getBlogCollection, sortMDByDate } from 'astro-pure/server'
+import { Button, Icon, Label, Spoiler } from 'astro-pure/user'
+import PageLayout from '@/layouts/BaseLayout.astro'
+import Section from '@/components/home/Section.astro'
+import SkillLayout from '@/components/home/SkillLayout.astro'
+import avatar from '@/assets/avatar.jpg'
+import config from '@/site-config'
+
+const programming = ['C/C++', 'Golang', 'Shell', 'SQL', 'Python', 'JavaScript', 'HTML']
+const toolkit = ['Git', 'Podman/Docker', 'Caddy/Nginx', 'systemd', 'QEMU/KVM', 'tmux']
+const ide = ['Antigravity', 'Cursor', 'VS Code', 'Neovim']
+
+const MAX_POSTS = 10
+const allPosts = await getBlogCollection()
+const allPostsByDate = sortMDByDate(allPosts).slice(0, MAX_POSTS)
+---
+
+<PageLayout meta={{ title: 'Home' }} highlightColor='#659EB9'>
+  <main class='flex w-full flex-col items-center'>
+    <section class='animate mb-10 flex flex-col items-center gap-y-7' id='content-header'>
+      <Image src={avatar} alt='profile' class='h-36 w-auto rounded-8 border p-1' loading='eager' />
+
+      <div class='flex flex-col items-center gap-y-4'>
+        <h1 class='text-3xl font-bold'>{config.author}</h1>
+        <div class='flex flex-wrap justify-center gap-x-7 gap-y-3'>
+          <Label title='China'>
+            <Icon name='location' class='size-5' slot='icon' />
+          </Label>
+          <Label title='GitHub' as='a' href='https://github.com/awfufu' target='_blank'>
+            <Icon name='github' class='size-5' slot='icon' />
+          </Label>
+        </div>
+      </div>
+
+      {/* Get Email */}
+      <a
+        href='mailto:me@awfufu.com'
+        target='_blank'
+        class='flex flex-row items-center gap-x-3 rounded-full border bg-background px-4 py-2 text-sm shadow-sm transition-shadow hover:shadow-md'
+      >
+        <span class='relative flex items-center justify-center'>
+          <span
+            class='absolute size-2 animate-ping rounded-full border border-green-400 bg-green-400 opacity-75'
+          ></span>
+          <span class='size-2 rounded-full bg-green-400'></span>
+        </span>
+        <p class='font-medium text-muted-foreground'>me@awfufu.com</p>
+      </a>
+    </section>
+
+    <div id='content' class='animate flex flex-col gap-y-10 md:w-4/5 lg:w-5/6'>
+      <Section title='关于'>
+        <p class='text-muted-foreground'>
+          你好，我是<strong>氟氟</strong>，对技术充满执念的普通人。
+        </p>
+        <ul>
+          <li>
+            <p class='text-muted-foreground'>
+              我喜欢 <strong>Linux</strong>：我长期使用它作为主力环境
+            </p>
+          </li>
+          <li>
+            <p class='text-muted-foreground'>
+              我喜欢 <strong>编程</strong>：<del>我喜欢自己造轮子</del>（
+            </p>
+          </li>
+          <li>
+            <p class='text-muted-foreground'>
+              我喜欢 <strong>Minecraft</strong>：从小玩到大的游戏
+            </p>
+          </li>
+          <li>
+            <p class='text-muted-foreground'><Spoiler>我喜欢你！</Spoiler></p>
+          </li>
+        </ul>
+        <Button title='更多' class='w-fit self-end' href='/about' variant='ahead' />
+      </Section>
+      {
+        allPostsByDate.length > 0 && (
+          <Section title='文章'>
+            <ul class='flex flex-col gap-y-1.5 sm:gap-y-2'>
+              {allPostsByDate.map((p) => (
+                <li class='flex flex-col gap-x-2 sm:flex-row'>
+                  <PostPreview post={p} />
+                </li>
+              ))}
+            </ul>
+            <Button title='更多' class='w-fit self-end' href='/blog' variant='ahead' />
+          </Section>
+        )
+      }
+      <Section title='技能'>
+        <SkillLayout title='编程' skills={programming} />
+        <SkillLayout title='工具' skills={toolkit} />
+        <SkillLayout title='IDE' skills={ide} />
+      </Section>
+    </div>
+    <!-- <Quote class='mt-12' /> -->
+  </main>
+</PageLayout>
