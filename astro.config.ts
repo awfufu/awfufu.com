@@ -1,5 +1,6 @@
 import { rehypeHeadingIds } from '@astrojs/markdown-remark'
 
+import cloudflare from '@astrojs/cloudflare'
 import AstroPureIntegration from 'astro-pure'
 import { defineConfig } from 'astro/config'
 import rehypeKatex from 'rehype-katex'
@@ -34,9 +35,8 @@ export default defineConfig({
   // output: 'server',
   // 2. Vercel (static)
   // adapter: vercelStatic(),
-  // 3. Local (standalone)
-  // adapter: node({ mode: 'standalone' }),
-  // output: 'server',
+  // 3. Cloudflare
+  adapter: cloudflare(),
   // ---
 
   image: {
