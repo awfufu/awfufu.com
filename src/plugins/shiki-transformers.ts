@@ -3,8 +3,10 @@ import type { ShikiTransformer } from 'shiki'
 
 export {
   transformerNotationDiff,
-  transformerNotationHighlight
-} from './shiki-official-transformers'
+  transformerNotationHighlight,
+  transformerNotationFocus,
+  transformerNotationErrorLevel
+} from '@shikijs/transformers'
 
 function parseMetaString(str = '') {
   return Object.fromEntries(
