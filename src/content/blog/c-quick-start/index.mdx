@@ -1,0 +1,277 @@
+---
+title: C语言快速入门
+publishDate: 2022-6-10 21:00:00
+description: 'C语言快速入门'
+tags:
+  - C语言
+language: 'zh-cn'
+---
+
+:::tip
+阅读本文之前，读者应该拥有至少一门其他的编程语言基础，了解少许的 Linux 命令。
+:::
+
+
+## 开发环境
+
+任意文本编辑器以及 C 编译器。本文选择 [gcc](https://gcc.gnu.org/) 在 Linux 上开发和调试。
+
+### 安装 gcc
+
+使用包管理器安装 gcc。某些发行版可能已经自带 gcc。
+
+import { Tabs, TabItem } from 'astro-pure/user';
+
+<Tabs>
+  <TabItem label="Linux">
+    ```bash
+    # Debian / Ubuntu
+    sudo apt install gcc
+
+    # Debian / Ubuntu
+    sudo apt install gcc
+
+    # Redhat / CentOS / Fedora
+    sudo dnf install gcc
+    ```
+  </TabItem>
+  <TabItem label="MacOS">
+    通过 [Homebrew](https://brew.sh/) 安装。
+    ```bash
+    brew install gcc
+    ```
+  </TabItem>
+  <TabItem label="Windows">
+    手动安装 [MinGW](https://www.mingw-w64.org/) 或通过 [winget](https://github.com/microsoft/winget-cli) 安装。
+    ```bash
+    winget install -e --id Mingw.Mingw
+    ```
+  </TabItem>
+</Tabs>
+
+### 文本编辑器
+
+你可以使用任意文本编辑器，推荐 [VSCode](https://code.visualstudio.com/)。
+
+## Hello World
+
+创建 `main.c` 文件并编辑。
+
+```c
+#include <stdio.h>
+
+int main() {
+  printf("Hello, World!\n");
+  return 0;
+}
+```
+
+编译代码，运行程序。
+
+```bash
+gcc main.c -o main
+./main
+# Hello, World!
+```
+
+### include 预处理指令
+
+在 C 语言中，以 `#` 开头的行是预处理器指令。`#include <stdio.h>` 告诉编译器：在编译之前先包含标准输入输出库（Standard Input Output）的信息，这样我们就可以使用 `printf` 等函数。
+
+### main 函数
+
+`main` 函数是程序的入口点。C 程序执行时，从这里开始。
+
+```c
+int main() {
+  // 代码逻辑
+  return 0; // 程序结束，返回 0 表示成功
+}
+```
+
+## 基本类型
+
+### 变量和类型
+
+变量是用于存储数据的容器，C 语言以以下的方式定义或声明变量。
+
+```c
+int a = 10; // 定义并初始化为 10
+int b;      // 声明但不初始化，仅分配一块内存
+```
+
+常见的变量类型有：
+
+- `int`: 整数，如 10, -5，现代计算机上通常为 32 位
+- `float`: 单精度浮点数，例如 3.14
+- `double`: 双精度浮点数，精度更高
+- `char`: 单个字符，例如 'A', 'z'
+
+`float` 和 `double` 的区别在于精度，`float` 通常为 32 位，`double` 通常为 64 位。其二进制存储方式遵循 [IEEE 754 标准](https://wikipedia.org/wiki/IEEE_754)，你可以在[IEEE 754 Visualizer](https://lukaskollmer.de/ieee-754-visualizer/)直观地了解其存储原理。
+
+```c
+#include <stdio.h>
+
+int main() {
+  int a = 10;
+  double b = 3.14159;
+  char c = 'A';
+
+  // %d 格式化打印整数，%f 格式化打印浮点数，%c 格式化打印字符
+  printf("a = %d, b = %f, c = %c\n", a, b, c);
+  // a = 10, b = 3.141590, c = A
+  return 0;
+}
+```
+
+更多基本类型信息可以参考 [C 标准](https://en.cppreference.com/w/c/language/arithmetic_types.html)。
+
+### 数组和字符串
+
+数组是存储多个相同类型数据的容器。C 语言中没有专门的字符串类型，而是使用字符数组。数组下标从 0 开始。
+
+```c
+#include <stdio.h>
+
+int main() {
+  int arr[5] = {1, 2, 3, 4, 5};
+  char str[] = "Hello";
+
+  printf("arr[2] = %d, str = %s\n", arr[2], str);
+  // arr[2] = 3, str = Hello
+  return 0;
+}
+```
+
+C 语言规定字符串必须以空字符 `\0`（数值为零的字符）结尾。不像其他高级语言对字符串的封装，C 语言中的字符串只是一个 `char[]` 数组，程序并不能直接得到数组的长度（之后会提到为什么），因此通过遍历字符直到 `\0` 来确定字符串在哪里结束。
+
+在定义 `char str[] = "Hello";` 时，C 语言会自动在字符串末尾添加 `\0`，因此虽然只有 5 个字符，但 `str` 的长度为 6。
+
+```c
+printf("%zu\n", sizeof(str));
+// 6
+```
+
+如果字符串不以 `\0` 结尾，程序可能无法正确识别字符串的结束位置，继续连续遍历其后内存，导致未定义行为。
+
+## 逻辑控制
+
+### 条件分支
+
+`if ... else` 根据条件执行不同的代码块。
+
+```c
+int num = 10;
+if (num > 0) {
+  printf("正数\n");
+} else if (num < 0) {
+  printf("负数\n");
+} else {
+  printf("零\n");
+}
+```
+
+:::tip
+C 语言中没有原生的布尔类型，数值为 0 为逻辑假，非 0 为逻辑真。逻辑运算的结果都是整数。
+:::
+
+### 选择分支
+
+`switch` 用于多条件判断。
+
+```c
+char grade = 'B';
+switch (grade) {
+  case 'A':
+    printf("优秀\n");
+    break; // 跳出 switch，如果不加会继续向下执行
+  case 'B':
+    printf("良好\n");
+    break;
+  default:
+    printf("其他\n");
+}
+```
+
+### for 循环
+
+当我们知道循环次数时使用。
+
+```c
+for (int i = 0; i < 5; i++) {
+  printf("i = %d\n", i);
+}
+```
+
+### while 循环
+
+当条件为真时重复执行。
+
+```c
+int i = 0;
+while (i < 5) {
+  printf("i = %d\n", i);
+  i++;
+}
+```
+
+## 函数
+
+函数是一组一起执行一个任务的语句。每个 C 程序都至少有一个函数，即 `main` 函数。
+
+### 定义与调用
+
+函数由返回类型、函数名、参数列表和函数体组成。
+
+```c
+#include <stdio.h>
+
+// 函数定义：返回 int，接收两个 int 参数
+int add(int x, int y) {
+  return x + y;
+}
+
+int main() {
+  int result = add(5, 3); // 函数调用
+  printf("result: %d\n", result);
+  return 0;
+}
+```
+
+### 声明
+
+不同于其他语言，C 语言在调用函数时，该函数必须被声明过。尝试下面的示例，我们把 `add` 函数移动到 `main` 下方，代码就不能通过编译了。
+
+```c
+#include <stdio.h>
+
+int main() {
+  int result = add(5, 3); // 错误：隐式声明函数‘add’ [-Wimplicit-function-declaration] // [!code error]
+  printf("result: %d\n", result);
+  return 0;
+}
+
+int add(int x, int y) {
+  return x + y;
+}
+```
+
+为了解决这个问题，我们可以在调用函数之前先声明函数。下面这个代码可以正常编译。
+
+```c
+#include <stdio.h>
+
+// 函数声明：不需要函数体，以分号结尾
+int add(int x, int y); // [!code ++]
+
+int main() {
+  int result = add(5, 3);
+  printf("result: %d\n", result);
+  return 0;
+}
+
+// 函数定义
+int add(int x, int y) {
+  return x + y;
+}
+```
