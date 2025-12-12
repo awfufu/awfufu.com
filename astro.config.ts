@@ -7,6 +7,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
 
 // Local integrations
+import { remarkAside } from './src/plugins/remark-aside.ts'
 // Local rehype & remark plugins
 import rehypeAutolinkHeadings from './src/plugins/rehype-auto-link-headings.ts'
 // Shiki
@@ -16,9 +17,12 @@ import {
   addTitle,
   transformerNotationDiff,
   transformerNotationHighlight,
+  transformerNotationFocus,
+  transformerNotationErrorLevel,
   updateStyle
 } from './src/plugins/shiki-transformers.ts'
 import config from './src/site.config.ts'
+import remarkDirective from 'remark-directive'
 
 // https://astro.build/config
 export default defineConfig({
@@ -67,7 +71,7 @@ export default defineConfig({
   },
   // Markdown Options
   markdown: {
-    remarkPlugins: [remarkMath],
+    remarkPlugins: [remarkDirective, remarkAside, remarkMath],
     rehypePlugins: [
       [rehypeKatex, {}],
       rehypeHeadingIds,
@@ -87,8 +91,10 @@ export default defineConfig({
         dark: 'dark-plus'
       },
       transformers: [
-        transformerNotationDiff(),
-        transformerNotationHighlight(),
+        transformerNotationDiff() as any,
+        transformerNotationHighlight() as any,
+        transformerNotationFocus() as any,
+        transformerNotationErrorLevel() as any,
         updateStyle(),
         addTitle(),
         addLanguage(),
