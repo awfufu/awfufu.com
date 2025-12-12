@@ -5,7 +5,7 @@ description: 'CSS 中最强大和最常用的布局方式之一'
 tags:
   - CSS
   - Flex
-heroImage: { src: './thumbnail.webp' }
+heroImage: { src: './thumbnail.webp' } # https://freerangestock.com/photos/160982/autumn-leaves-changing-colors-in-a-row.html
 language: 'zh-cn'
 ---
 
