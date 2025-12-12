@@ -5,7 +5,7 @@ description: 'CSS 中最强大和最常用的布局方式之一'
 tags:
   - CSS
   - Flex
-heroImage: { src: './thumbnail.jpg' }
+heroImage: { src: './thumbnail.webp' }
 language: 'zh-cn'
 ---
 
