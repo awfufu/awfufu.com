@@ -1,16 +1,16 @@
 ---
 title: C语言快速入门
 publishDate: 2022-6-10 21:00:00
-description: 'C语言快速入门'
+description: '快速学习C语言基本语法'
 tags:
   - C语言
+heroImage: { src: './thumbnail.webp' } # source: https://www.flickr.com/photos/isipeoria/6691167811/
 language: 'zh-cn'
 ---
 
 :::tip
 阅读本文之前，读者应该拥有至少一门其他的编程语言基础，了解少许的 Linux 命令。
 :::
-
 
 ## 开发环境
 
@@ -28,11 +28,11 @@ import { Tabs, TabItem } from 'astro-pure/user';
     # Debian / Ubuntu
     sudo apt install gcc
 
-    # Debian / Ubuntu
-    sudo apt install gcc
-
     # Redhat / CentOS / Fedora
     sudo dnf install gcc
+
+    # Arch Linux / Manjaro
+    sudo pacman -S gcc
     ```
   </TabItem>
   <TabItem label="MacOS">
@@ -57,7 +57,7 @@ import { Tabs, TabItem } from 'astro-pure/user';
 
 创建 `main.c` 文件并编辑。
 
-```c
+```c title="main.c"
 #include <stdio.h>
 
 int main() {
@@ -193,9 +193,9 @@ switch (grade) {
 }
 ```
 
-### for 循环
+### 结构
 
-当我们知道循环次数时使用。
+当我们知道循环次数时可以使用 `for` 循环。
 
 ```c
 for (int i = 0; i < 5; i++) {
@@ -203,15 +203,13 @@ for (int i = 0; i < 5; i++) {
 }
 ```
 
-### while 循环
-
-当条件为真时重复执行。
+需要重复执行直到达成某个条件，不知道具体次数时，可以用 `while` 循环。
 
 ```c
 int i = 0;
 while (i < 5) {
   printf("i = %d\n", i);
-  i++;
+  ++i;
 }
 ```
 
@@ -275,3 +273,8 @@ int add(int x, int y) {
   return x + y;
 }
 ```
+
+import { Card } from 'astro-pure/user'
+
+<Card as='a' href='/blog/c-pointer-and-struct' heading='下一章'
+  subheading='继续学习指针和结构体...'>C指针和结构体</Card>
