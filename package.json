@@ -23,6 +23,7 @@
     "@astrojs/cloudflare": "^12.6.12",
     "@astrojs/rss": "^4.0.13",
     "@shikijs/transformers": "^3.19.0",
+    "@unocss/astro": "^66.5.4",
     "@waline/client": "^3.7.1",
     "astro": "^5.15.3",
     "astro-pure": "workspace:*",
