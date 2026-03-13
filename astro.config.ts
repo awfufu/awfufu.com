@@ -44,9 +44,11 @@ export default defineConfig({
   // ---
 
   image: {
-    responsiveStyles: true,
     service: {
-      entrypoint: 'astro/assets/services/sharp'
+      entrypoint: 'astro/assets/services/sharp',
+      config: {
+        imageService: 'compile'
+      }
     }
   },
 
