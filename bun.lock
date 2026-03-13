@@ -17,6 +17,7 @@
         "rehype-katex": "^7.0.1",
         "remark-math": "^6.0.0",
         "sharp": "^0.34.4",
+        "tinyexec": "^1.0.1",
         "typescript": "^5.9.3",
       },
       "devDependencies": {
