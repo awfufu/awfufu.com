@@ -1,0 +1,345 @@
+---
+title: NVIDIA Orin NX/Nano 环境配置与搭建
+publishDate: 2026-03-01
+description: 在 NVIDIA Orin NX/Nano 平台上部署 ROS2 (AADCL_UAV_UGV) 的完整环境配置指南。
+tags:
+  - NVIDIA
+  - Orin
+  - ROS2
+  - Docker
+heroImage: { src: './thumbnail.png' }
+language: 'zh-cn'
+---
+
+
+## 一、 项目概述
+本项目在 NVIDIA Jetson Orin NX/Nano 平台上部署一系列无人机上位机所需的ROS2包，下称 AADCL_UAV_UGV。为简化开发流程，并支持后续批量配置集群的需求，本项目通过容器化技术（Docker + Compose）部署，并利用 mDNS 协议简化集群组网。
+
+## 二、 基础环境配置
+
+如果你拿到一台装好系统的 Orin Nano，并且在任意条件下进入了终端，不管是通过 SSH、直接连接显示器还是通过远程桌面，都可以按照以下步骤进行配置。
+我们需要：一个稳定的局域网（最好能进入路由器后台查到nano的IP）、一个可以连接到nano的SSH客户端（任意系统都行）。
+我们先从配置网络开始。
+
+### 2.1 连接 WiFi：让你的 nano 上网
+要把 nano 连上你的局域网，最快的办法是使用 `nmcli` 指令。
+
+1.  **扫描附近的 WiFi**：
+    ```bash
+    nmcli device wifi list
+    ```
+2.  **连接到你的 SSID**：
+    ```bash
+    # 把 Your_SSID 和 Your_Password 换成实际的
+    sudo nmcli device wifi connect "Your_SSID" password "Your_Password"
+    ```
+    :::note
+    **关于 5GHz WiFi**：Orin Nano 是否支持 5GHz 取决于你安装的 M.2 无线网卡（原装开发套件通常支持）。如果扫描不到 5G 信号，请确认网卡型号及天线是否连接妥当。
+    :::
+
+3.  **确认连接成功**：
+    ```bash
+    nmcli connection show  # 看到有绿色的一行就说明连上了
+    ```
+
+### 2.2 抛弃静态 IP：配置 mDNS 访问
+在多机协同的环境下，记每台车/无人机的 IP 地址是非常麻烦的。我们通过配置 mDNS，让你能在局域网内直接用 `nrcXX.local` 这种名字访问 nano，不管它的 IP 怎么变。
+如上文所说，我们进入了 Orin Nano的终端，我们在这里的终端下输入如下指令：
+
+1.  **给你的 nano 起个名字**：
+    ```bash
+    # 比如第 17 号机，我们就叫它 nrc17
+    sudo hostnamectl set-hostname nrc17
+    ```
+2.  **配置并启动服务 (Avahi)**：
+    安装 Avahi 并确保它在运行。注意：**修改主机名后必须重启 Avahi 服务**才能让新名字在局域网生效。
+    ```bash
+    sudo apt update && sudo apt install -y avahi-daemon
+    sudo systemctl restart avahi-daemon
+    sudo systemctl enable avahi-daemon
+    ```
+    :::tip
+    如果还是搜不到，最稳妥的办法是输入 `sudo reboot` 重启整台 nano。
+    :::
+3.  **验证一下**：在你的开发机（比如笔记本）上执行 `ping nrc17.local`。如果能通，以后你只需要记住这个名字就行了。
+
+### 2.3 生产环境对齐：基于 SSH 的 Headless 开发
+在无人机集群开发中，给每台 Orin Nano 配备显示器是不现实的。更核心的原因在于：**运行图形界面 (GUI) 会消耗昂贵的 CPU/GPU 资源**，在 Orin Nano 这种算力受限的平台上，每一分资源都应该留给 ROS 管道和 AI 推理。
+
+因此，建议采用 **Headless** 开发模式：
+*   **性能最大化**：关闭桌面环境可节省数百 MB 显存及 CPU 周期。
+*   **环境一致性**：开发环境与最终飞行场景完全一致，避免图形驱动导致的性能抖动。
+*   **远程可视化**：通过 `foxglove_bridge` 等工具建立 WebSocket 通道，将原始数据流高效转发到你的电脑桌面上，使用 Foxglove Studio 进行低延迟的可视化调试。
+
+1.  **配置你的开发机 (推荐)**：
+    为了不用每次都输 IP 甚至不用输密码，建议在你的电脑（Linux/Mac/Win）的 `~/.ssh/config` 中加入如下配置：
+    ```text
+    Host nrc17
+        HostName nrc17.local
+        User nvidia
+    ```
+    这样便相当于用 `ssh nrc17` 代替了 `ssh nvidia@192.168.1.17`。
+
+2.  **免密登录 (可选)**：
+    在你的开发机终端执行：
+    ```bash
+    ssh-keygen -t ed25519  # 生成你的密钥（如果已经有了就跳过）
+    ssh-copy-id nrc17      # 把你的公钥“递给”nano
+    ```
+    完成后，`ssh nrc17` 便可直连（这在 vibe coding 时非常实用）。
+
+
+
+### 2.4 容器环境：Docker 与 NVIDIA Toolkit
+为了不把 nano 的原始系统环境搞乱，建议全量使用容器。除了 Docker，最关键的是要安装 NVIDIA 的转发工具（Toolkit），这样容器里的算法才能用到 Orin 的 GPU 算力。
+
+1.  **安装 Docker 引擎与 Compose V2 插件**：
+    由于 Ubuntu 22.04 的官方源不含 Compose V2 (即 `docker compose` 指令)，我们需要添加 Docker 官方软件源：
+    ```bash
+    # 1. 安装基础依赖
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl gnupg
+
+    # 2. 添加 Docker 官方 GPG 密钥 (使用 .asc 格式最稳妥，避免转换报错)
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+    # 3. 添加 Docker 软件源列表
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # 4. 更新并安装 V2 插件
+    sudo apt-get update
+    sudo apt-get install -y docker-compose-plugin
+
+    # 5. 权限补丁：将当前用户加入 docker 组
+    sudo usermod -aG docker $USER
+    # 注意：执行后需重新登录，或输入 `newgrp docker` 立即生效
+    ```
+
+2.  **配置 NVIDIA 软件源并安装 Toolkit**：
+    由于 Ubuntu 官方源不含此工具，必须手动添加 NVIDIA 的仓库：
+    ```bash
+    # 账户预检
+    sudo apt-get update && sudo apt-get install -y curl
+
+    # 1. 导入 GPG 密钥（如果文件已存在，执行此指令会自动覆盖）
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor --yes -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+    # 2. 添加软件源列表
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+      sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+    # 3. 更新并安装
+    sudo apt-get update
+    sudo apt-get install -y nvidia-container-toolkit
+
+    # 4. 重启 Docker 生效
+    sudo systemctl restart docker
+    ```
+
+
+---
+
+## 三、 获取源码：克隆仓库
+基础环境搭好后，通过 Git 将 AADCL_UAV_UGV 架构直接克隆到 nano 的家目录下。
+
+### 3.1 配置 GitHub 访问权限 (SSH Key)
+由于我们推荐使用 SSH 协议进行克隆（避免 HTTPS 密码弹窗），你需要让 GitHub 认识这台 nano。
+
+1.  **在 nano 上生成密钥对**：
+    ```bash
+    ssh-keygen -t ed25519 -C "nrc_xx"
+    # 一路回车即可
+    ```
+2.  **获取公钥内容**：
+    ```bash
+    cat ~/.ssh/id_ed25519.pub
+    ```
+3.  **添加到 GitHub**：
+    复制上面输出的以 `ssh-ed25519` 开头的字符串，前往 [GitHub SSH Settings](https://github.com/settings/keys)，点击 **New SSH key**，Title 起名为 `nrc17`（或你的无人机编号），粘贴内容并保存。
+
+### 3.2 执行克隆与子模块同步
+完成上述步骤后，即可开始获取源码。
+
+:::important
+**切记使用 SSH 地址**：如果你复制的是 `https://` 开头的地址，Git 会始终要求你输入账号密码，但本仓库目前是私密仓库，所以要使用密钥进行pull。要使用前面配置的 SSH Key 实现免密，请务必使用下文中 `git@github.com` 开头的地址。
+:::
+
+执行以下指令进行全量同步：
+
+```bash
+cd ~
+# 1. 克隆主架构 (注意这行地址，不要复制成 https 的)
+git clone git@github.com:BAIOLED/AADCL_UAV_UGV.git
+cd AADCL_UAV_UGV
+
+# 2. 关键：拉取所有依赖的算法源码和硬件驱动
+git submodule update --init --recursive
+
+# 3. 补丁：修正 livox_ros_driver2 的 package.xml (否则 colcon 找不到包)
+[ -f src/drivers/livox_ros_driver2/package_ROS2.xml ] && cp src/drivers/livox_ros_driver2/package_ROS2.xml src/drivers/livox_ros_driver2/package.xml
+```
+
+:::note
+**为什么需要这个补丁？** 
+`livox_ros_driver2` 官方仓库为了同时兼容 ROS1 和 ROS2，在根目录下并没有默认提供 `package.xml`。
+ROS2 的编译工具 `colcon` 只认 `package.xml` 结尾的文件。如果不执行这一步，编译工具会直接跳过该驱动包，导致系统因缺少雷达驱动而启动失败。
+:::
+
+## 四、 AADCL_UAV_UGV 目录结构 (Scheme C 标准)
+代码按照“单一职责”原则划分为五个顶级目录：
+
+```text
+~/AADCL_UAV_UGV
+├── .env                # 机器硬件配置 (单一事实来源)
+├── config/             # 算法逻辑配置 (*.yaml)
+├── src/
+│   ├── main/           # 系统编排层 (TF/Launch)
+│   ├── drivers/        # L1 硬件驱动层
+│   ├── core/           # L2 核心感知层
+│   ├── apps/           # L3 业务应用层
+│   └── sim/            # 仿真工具层
+├── compose.yaml        # 多容器编排声明
+└── README.md
+```
+
+## 五、 配置、编排与启动
+源码拿到了，环境也稳了，现在我们要把这一大堆 ROS 包跑起来。我们采用的是 **SSOT (单一事实来源)** 原则，通过 `.env` 文件来管理机器之间的差异。
+
+### 5.1 配置你的“身份证” (.env)
+仓库里**已经包含**了一个 [`.env.example`](/AADCL_UAV_UGV/.env.example) 模板。它就像是一份协议，规定了这台车需要哪些硬件参数。
+
+1.  **复制模板**：
+    ```bash
+    cp .env.example .env
+    ```
+2.  **填空题**：编辑 `.env`。由于每台无人机的串口路径（比如 MAVLink 用的 `/dev/ttyTHS1`）和系统 ID 都是独特的，你需要在这里把它们填对。
+
+### 5.2 (可选) 离线数据集安装 (MAVROS 必备)
+MAVROS 在启动时需要特殊的地理坐标数据集（Geoids）。如果在启动日志里看到 `GeographicLib exception` 报错，请执行以下指令进行一键安装：
+
+```bash
+mkdir -p ~/AADCL_UAV_UGV/data/geographiclib
+# 启动一个临时容器进行下载（约 100MB）
+docker run --rm -v ~/AADCL_UAV_UGV/data/geographiclib:/usr/share/GeographicLib robot_stack_base:humble /opt/ros/humble/lib/mavros/install_geographiclib_datasets.sh
+```
+
+### 5.3 初次启动系统
+本项目使用 **Docker V2**（即 `docker compose`）进行一键编排。
+
+由于 `AADCL_UAV_UGV` 采用了分层镜像设计（应用层镜像依赖于基础层镜像），在 **新机器初次部署** 时，直接执行 `up` 可能会因为镜像构建顺序的竞争导致报错。请严格遵循以下两步走：
+
+1.  **第一步：构建基础镜像**（重要：初次耗时约 30-50 分钟）：
+    这一步会安装 ROS2 Humble、PCL、OpenCV 等数 GB 的依赖，并从源码编译 `Livox-SDK2`。**注意**：这个时间受限于网络下载量和 Nano 的解压速度，30多分钟都是正常的。
+    ```bash
+    docker compose build l1-hardware
+    ```
+
+2.  **第二步：启动全量系统**：
+    基础镜像就绪后，再次启动将实现一键秒连。
+    ```bash
+    docker compose up -d
+    ```
+*   **启动视觉模块**：如果你需要跑 YOLO 目标检测。
+    ```bash
+    docker compose --profile apps up -d l3-yolo-demo
+    ```
+*   **启动监控桥接**：为了用 Foxglove 远程看数据。
+    ```bash
+    docker compose --profile viz up -d visualization-bridge
+    ```
+
+### 5.3 进阶：使用 `ros2c` 消除容器隔离感
+Docker 的环境隔离虽然安全，但调试很不方便：每次查看节点都要用 `docker exec` 钻进容器。我们提供了一个 `ros2c` (ROS2 in Container) 脚本，让你在宿主机执行指令时感觉就像直接在原生环境下运行一样。
+
+请在 **宿主机（Nano 终端）** 直接复制执行以下三步进行“一键安装”：
+
+1.  **创建脚本目录并一键生成工具**：
+    ```bash
+    mkdir -p ~/bin
+    cat <<'EOF' > ~/bin/ros2c
+    #!/usr/bin/env bash
+    # 在 AADCL_UAV_UGV_dev 容器内透明执行 ROS2 指令
+    docker exec AADCL_UAV_UGV_dev bash -lc 'cd /workspaces/AADCL_UAV_UGV && source /opt/ros/humble/setup.bash && [ -f install/setup.bash ] && source install/setup.bash; ros2 "$@"' -- "$@"
+    EOF
+    chmod +x ~/bin/ros2c
+    ```
+
+2.  **将工具路径集成到系统环境**：
+    ```bash
+    # 自动检查并添加路径到 .bashrc
+    grep -q 'export PATH=$PATH:~/bin' ~/.bashrc || echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
+    # 添加别名
+    grep -q "alias ros2c='~/bin/ros2c'" ~/.bashrc || echo "alias ros2c='~/bin/ros2c'" >> ~/.bashrc
+    # 立即生效
+    source ~/.bashrc
+    ```
+
+3.  **启动配套的开发容器**：
+    `ros2c` 依赖一个常驻的“开发环境”容器（在 `compose.yaml` 的 `dev` profile 中定义）。
+    ```bash
+    cd ~/AADCL_UAV_UGV
+    docker compose --profile dev up -d dev
+    ```
+
+**验证方法**：
+现在，你不需要进入容器，直接在宿主机执行：
+```bash
+ros2c node list
+ros2c topic echo /Odometry
+```
+如果能看到节点列表或数据跳动，说明你的 Nano 已经和容器环境“融为一体”了。
+
+### 六、 进阶：如何快速部署多台机器？ (集群快速迁移)
+当你有了一台完整编好镜像的机型（如 `nrc17`），给同型号的新机器（如 `nrc18`）配置环境时，不需要再重复经历 30-50 分钟的编译。
+
+利用 Docker 的镜像导出功能，可以在 5 分钟内完成迁移：
+
+1.  **在“母机”（已编好的机器）上导出镜像**：
+    ```bash
+    # 导出核心基础镜像
+    docker save robot_stack_base:humble | gzip > ~/AADCL_UAV_UGV_base.tar.gz
+    ```
+
+2.  **通过内网拷贝到新机器**：
+    ```bash
+    # 在你的开发机或母机上执行
+    scp ~/AADCL_UAV_UGV_base.tar.gz nvidia@nrc18.local:~
+    ```
+
+3.  **在新机器上导入镜像**：
+    ```bash
+    docker load < ~/AADCL_UAV_UGV_base.tar.gz
+    ```
+
+4.  **启动**：
+    导入后，新机器执行 `docker compose up -d` 时将直接跳过 Build 阶段，实现秒级部署。
+
+## 七、 检查作业：如何确认系统正常？
+程序跑起来后，总得确认它是不是真的在干活。这里有三条“金标准”：
+
+1.  **节点全不全？**：执行 `ros2c node list`，你应该能看到 `mavros`、`fast_lio` 和 `ego_planner` 等一众核心节点都在线。
+2.  **定位有输出吗？**：执行 `ros2 topic echo /Odometry`。如果屏幕上数据在跳，说明算法已经闭环并在解算定位。
+3.  **视觉有反应吗？**：如果启动了 YOLO，执行 `ros2 topic echo /yolo/detections`。如果有人或物体出现在镜头里，你会看到识别结果。
+
+
+### 归档： 硬件网口设置
+Livox MID360 雷达的数据量非常大。如果直接插在主网口上，高频的点云包可能会直接把你的 WiFi 或者 SSH 连线卡死。为了解决这个问题，我们要把雷达单独“锁”在一个物理网口上，互不干扰。
+
+1.  **看看雷达插在哪个口**：
+    ```bash
+    nmcli device  # 找一下那个显示“以太网”连接的口，比如叫 enP8p1s0
+    ```
+2.  **给这个口设个固定 IP**：
+    注意：雷达不需要网关，我们只要在这个口上配置 `192.168.10.x` 网段就行。
+    ```bash
+    # 假设网口名是 enP8p1s0，给 nano 分配 192.168.10.50
+    sudo nmcli connection add type ethernet con-name lidar-link ifname enP8p1s0 ipv4.method manual ipv4.addresses 192.168.10.50/24
+    sudo nmcli connection up lidar-link
+    ```
+3.  **查一下是否生效**：执行 `ip addr show enP8p1s0`，看到 `192.168.10.50` 就说明搞定了。
