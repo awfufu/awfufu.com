@@ -50,3 +50,10 @@ ignore.*
 bunfig.toml
 /src/content/blog/test.*
 /test/
+CONTENT_GUIDE.md
+SUMMARY.md
+.cunzhi-memory/context.md
+.cunzhi-memory/metadata.json
+.cunzhi-memory/patterns.md
+.cunzhi-memory/preferences.md
+.cunzhi-memory/rules.md
