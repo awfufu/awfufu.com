@@ -9,9 +9,9 @@ heroImage:
 language: "zh-cn"
 ---
 
-import { Aside } from 'astro-pure/user'
+import { Aside, Tabs, TabItem } from 'astro-pure/user'
 
-## 〇、 前言
+## 前言
 不常用的流程及指令容易遗忘，而有些流程是低频却必要的，比如新设备的初始化。本文记录 NVIDIA Orin NX/Nano 系统的安装以及初步配置流程以便查阅。
 
 ## 一、 WSL2配置
@@ -92,14 +92,32 @@ Bus 001 Device 025: ID 0955:7523 NVIDIA Corp. APX
 #### 2.2.4 命令行刷写
 Quick Start 给出的 Jetson Orin Nano Developer Kit 官方示例如下：
 
-**通常刷到 M.2 NVMe 固态硬盘：**
-
-```bash
-sudo ./tools/kernel_flash/l4t_initrd_flash.sh --external-device nvme0n1p1 \
-  -c tools/kernel_flash/flash_l4t_t234_nvme.xml \
-  -p "-c bootloader/generic/cfg/flash_t234_qspi.xml" \
-  --showlogs --network usb0 jetson-orin-nano-devkit internal
-```
+<Tabs>
+  <TabItem label="NVMe（推荐）">
+    ```bash
+    sudo ./tools/kernel_flash/l4t_initrd_flash.sh --external-device nvme0n1p1 \
+      -c tools/kernel_flash/flash_l4t_t234_nvme.xml \
+      -p "-c bootloader/generic/cfg/flash_t234_qspi.xml" \
+      --showlogs --network usb0 jetson-orin-nano-devkit internal
+    ```
+  </TabItem>
+  <TabItem label="USB">
+    ```bash
+    sudo ./tools/kernel_flash/l4t_initrd_flash.sh --external-device sda1 \
+      -c tools/kernel_flash/flash_l4t_t234_nvme.xml \
+      -p "-c bootloader/generic/cfg/flash_t234_qspi.xml" \
+      --showlogs --network usb0 jetson-orin-nano-devkit internal
+    ```
+  </TabItem>
+  <TabItem label="SD 卡">
+    ```bash
+    sudo ./tools/kernel_flash/l4t_initrd_flash.sh --external-device mmcblk0p1 \
+      -c tools/kernel_flash/flash_l4t_t234_nvme.xml \
+      -p "-c bootloader/generic/cfg/flash_t234_qspi.xml" \
+      --showlogs --network usb0 jetson-orin-nano-devkit internal
+    ```
+  </TabItem>
+</Tabs>
 
 其中：
 
@@ -109,14 +127,6 @@ sudo ./tools/kernel_flash/l4t_initrd_flash.sh --external-device nvme0n1p1 \
 *   `--showlogs`：输出详细刷机日志。
 *   `--network usb0`：通过 USB 虚拟网卡完成刷机过程中的网络通信。
 *   `jetson-orin-nano-devkit internal`：目标板型与刷写模式参数。
-
-**刷到 USB 存储：**
-
-把 `--external-device nvme0n1p1` 改成 `sda1`。
-
-**刷到 SD 卡：**
-
-把 `--external-device nvme0n1p1` 改成 `mmcblk0p1`。
 
 
 `--network usb0` 不能漏。Flashing Support 提到，`initrd flash` 过程中工具会通过 `IPv6` 地址空间 `fc00:1:1::/48` 使用 NFS 和 SSH。
@@ -194,62 +204,54 @@ whoami        # 当前登录用户
 
 如果每次都手动输入 `ssh nvidia@192.168.x.x`，很快就会烦。更实用的做法是在开发机的 `~/.ssh/config` 里给每台设备起一个固定别名。
 
-先看一个工程上更常用的完整示例：
+<Tabs>
+  <TabItem label="完整示例">
+    ```text
+    Host nrc17
+        HostName nrc17.local               # 设备地址；默认值是命令行里输入的主机名，也可以先写成 192.168.1.20
+        User nvidia                        # 登录用户；默认值通常是当前本机用户名
+        Port 22                            # SSH 端口；默认值是 22
+        IdentityFile ~/.ssh/id_ed25519     # 指定使用的私钥；默认会依次尝试 ~/.ssh/id_rsa、id_ecdsa、id_ecdsa_sk、id_ed25519、id_ed25519_sk
+        IdentitiesOnly yes                 # 只使用上面这把密钥；默认值是 no
+        PubkeyAuthentication yes           # 明确启用公钥认证；默认值是 yes
+        ConnectTimeout 5                   # 连接超时；默认未显式设置时使用系统 TCP 超时
+        ServerAliveInterval 30             # 每 30 秒发一次保活；默认值是 0，表示不主动发送保活
+        ServerAliveCountMax 3              # 连续 3 次保活无响应后断开；默认值是 3
+        LocalForward 8765 localhost:8765   # 可选：把 Nano 的 8765 端口转到本机；默认不启用任何本地端口转发
+    ```
+  </TabItem>
+  <TabItem label="最简块">
+    ```text
+    Host nrc17
+        HostName nrc17.local
+        User nvidia
+    ```
+  </TabItem>
+  <TabItem label="跳板机">
+    ```text
+    Host jump-lab
+        HostName 10.0.0.10                 # 跳板机地址
+        User labuser                       # 跳板机用户
+        IdentityFile ~/.ssh/id_ed25519     # 登录跳板机使用的私钥
 
-```text
-Host nrc17
-    HostName nrc17.local               # 设备地址；默认值是命令行里输入的主机名，也可以先写成 192.168.1.20
-    User nvidia                        # 登录用户；默认值通常是当前本机用户名
-    Port 22                            # SSH 端口；默认值是 22
-    IdentityFile ~/.ssh/id_ed25519     # 指定使用的私钥；默认会依次尝试 ~/.ssh/id_rsa、id_ecdsa、id_ecdsa_sk、id_ed25519、id_ed25519_sk
-    IdentitiesOnly yes                 # 只使用上面这把密钥；默认值是 no
-    PubkeyAuthentication yes           # 明确启用公钥认证；默认值是 yes
-    ConnectTimeout 5                   # 连接超时；默认未显式设置时使用系统 TCP 超时
-    ServerAliveInterval 30             # 每 30 秒发一次保活；默认值是 0，表示不主动发送保活
-    ServerAliveCountMax 3              # 连续 3 次保活无响应后断开；默认值是 3
-    LocalForward 8765 localhost:8765   # 可选：把 Nano 的 8765 端口转到本机；默认不启用任何本地端口转发
-```
+    Host nrc17-via-jump
+        HostName 192.168.1.20              # Nano 在内网中的地址
+        User nvidia                        # Nano 登录用户
+        IdentityFile ~/.ssh/id_ed25519     # 登录 Nano 使用的私钥
+        IdentitiesOnly yes                 # 只使用指定私钥
+        ProxyJump jump-lab                 # 先跳到 jump-lab，再转发到目标主机
+        ConnectTimeout 5                   # 避免跳板链路异常时卡太久
+    ```
+  </TabItem>
+</Tabs>
 
-其中 `Host` 后面的 `nrc17` 是你自己定义的别名。这样以后直接执行：
+其中 `Host` 后面的名字是你自己定义的别名。这样以后直接执行：
 
 ```bash
 ssh nrc17
 ```
 
-即可登录对应设备。
-最简块可以写成这样：
-
-```text
-Host nrc17
-    HostName nrc17.local
-    User nvidia
-```
-
-
-如果目标设备不在当前局域网，而是需要先经过一台跳板机，再访问内网里的 Nano，可以这样写：
-
-```text
-Host router
-    HostName 10.0.0.10                 # 跳板机地址
-    User labuser                       # 跳板机用户
-    IdentityFile ~/.ssh/id_ed25519     # 登录跳板机使用的私钥
-
-Host nrc17-via-jump
-    HostName 192.168.1.20              # Nano 在内网中的地址
-    User nvidia                        # Nano 登录用户
-    IdentityFile ~/.ssh/id_ed25519     # 登录 Nano 使用的私钥
-    IdentitiesOnly yes                 # 只使用指定私钥
-    ProxyJump jump-lab                 # 先跳到 jump-lab，再转发到目标主机
-    ConnectTimeout 5                   # 避免跳板链路异常时卡太久
-```
-
-之后直接执行：
-
-```bash
-ssh nrc17-via-jump
-```
-
-即可通过跳板机接入目标设备。  
+即可登录对应设备。  
 如果跳板链路不止一层，`ProxyJump` 也支持继续写成 `jump-a,jump-b` 这种链式形式。
 
 ### 4.3 免密登录
